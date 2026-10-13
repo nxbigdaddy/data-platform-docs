@@ -1,0 +1,36 @@
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 数据与凭据（严禁提交）
+*.sql
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+*.bak
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+id_rsa*
+id_ed25519*
+cookie*.txt
+secrets.json
+
+# 构建产物与压缩包
+*.zip
+*.7z
+*.tar.gz
+*.exe
+*.dll
+*.so
+*.log

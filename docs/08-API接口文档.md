@@ -1,0 +1,745 @@
+# 数据中台系统API接口文档
+
+## 文档信息
+
+| 项目 | 内容 |
+|------|------|
+| 文档名称 | 数据中台系统API接口文档 |
+| 文档版本 | V1.0 |
+| 编制日期 | 2026-03-31 |
+| 编制人 | 技术开发组 |
+| 审批状态 | 待审批 |
+
+---
+
+## 1. 概述
+
+### 1.1 接口规范
+
+- **协议**：HTTPS
+- **格式**：JSON
+- **编码**：UTF-8
+- **版本**：v1
+- **Base URL**：`https://api.dmp.example.com/api/v1`
+
+### 1.2 认证方式
+
+采用 JWT Token 认证，在请求头中携带：
+
+```
+Authorization: Bearer {access_token}
+```
+
+### 1.3 响应格式
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {},
+  "timestamp": 1711843200,
+  "request_id": "req_abc123"
+}
+```
+
+### 1.4 状态码
+
+| 状态码 | 说明 |
+|--------|------|
+| 200 | 成功 |
+| 400 | 请求参数错误 |
+| 401 | 未授权 |
+| 403 | 禁止访问 |
+| 404 | 资源不存在 |
+| 429 | 请求过于频繁 |
+| 500 | 服务器内部错误 |
+
+---
+
+## 2. 认证接口
+
+### 2.1 用户登录
+
+**接口**：`POST /auth/login`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| username | string | 是 | 用户名/邮箱/手机号 |
+| password | string | 是 | 密码 |
+| captcha | string | 否 | 验证码 |
+| captcha_key | string | 否 | 验证码标识 |
+
+**请求示例**：
+
+```json
+{
+  "username": "admin",
+  "password": "Admin@123"
+}
+```
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "登录成功",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "real_name": "管理员",
+      "avatar": "https://...",
+      "roles": ["super_admin"]
+    }
+  }
+}
+```
+
+### 2.2 刷新Token
+
+**接口**：`POST /auth/refresh`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| refresh_token | string | 是 | 刷新令牌 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "刷新成功",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIs...",
+    "expires_in": 3600
+  }
+}
+```
+
+### 2.3 用户登出
+
+**接口**：`POST /auth/logout`
+
+**请求头**：`Authorization: Bearer {token}`
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "登出成功"
+}
+```
+
+---
+
+## 3. 数据源管理接口
+
+### 3.1 获取数据源列表
+
+**接口**：`GET /datasources`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| datasource_type | string | 否 | 数据源类型 |
+| status | int | 否 | 状态：0-待测试，1-正常，2-异常 |
+| business_domain | string | 否 | 业务域 |
+| keyword | string | 否 | 关键词搜索 |
+| page | int | 否 | 页码，默认1 |
+| size | int | 否 | 每页条数，默认20 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "datasource_code": "mysql_prod",
+        "datasource_name": "生产MySQL",
+        "datasource_type": "mysql",
+        "datasource_desc": "生产环境MySQL数据库",
+        "status": 1,
+        "business_domain": "电商",
+        "owner_name": "张三",
+        "tags": "核心,交易",
+        "created_at": "2026-03-01T10:00:00Z"
+      }
+    ],
+    "total": 25,
+    "page": 1,
+    "size": 20
+  }
+}
+```
+
+### 3.2 创建数据源
+
+**接口**：`POST /datasources`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| datasource_code | string | 是 | 数据源编码，唯一 |
+| datasource_name | string | 是 | 数据源名称 |
+| datasource_type | string | 是 | 数据源类型 |
+| datasource_desc | string | 否 | 数据源描述 |
+| connection_config | object | 是 | 连接配置 |
+| business_domain | string | 否 | 业务域 |
+| tags | string | 否 | 标签，逗号分隔 |
+
+**请求示例**：
+
+```json
+{
+  "datasource_code": "mysql_order",
+  "datasource_name": "订单数据库",
+  "datasource_type": "mysql",
+  "datasource_desc": "订单系统MySQL数据库",
+  "connection_config": {
+    "host": "203.0.113.10",
+    "port": 3306,
+    "database": "order_db",
+    "username": "dmp_read",
+    "password": "encrypted_password",
+    "charset": "utf8mb4"
+  },
+  "business_domain": "电商",
+  "tags": "订单,核心"
+}
+```
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "创建成功",
+  "data": {
+    "id": 10,
+    "datasource_code": "mysql_order",
+    "datasource_name": "订单数据库",
+    "status": 0,
+    "created_at": "2026-03-31T10:00:00Z"
+  }
+}
+```
+
+### 3.3 获取数据源详情
+
+**接口**：`GET /datasources/{datasource_id}`
+
+**路径参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| datasource_id | int | 数据源ID |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "id": 1,
+    "datasource_code": "mysql_prod",
+    "datasource_name": "生产MySQL",
+    "datasource_type": "mysql",
+    "datasource_desc": "生产环境MySQL数据库",
+    "connection_config": {
+      "host": "203.0.113.10",
+      "port": 3306,
+      "database": "prod_db",
+      "username": "dmp_read",
+      "charset": "utf8mb4"
+    },
+    "status": 1,
+    "last_test_time": "2026-03-31T09:00:00Z",
+    "last_test_result": "连接成功",
+    "business_domain": "电商",
+    "owner_name": "张三",
+    "tags": "核心,交易",
+    "created_at": "2026-03-01T10:00:00Z",
+    "updated_at": "2026-03-31T09:00:00Z"
+  }
+}
+```
+
+### 3.4 更新数据源
+
+**接口**：`PUT /datasources/{datasource_id}`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| datasource_name | string | 否 | 数据源名称 |
+| datasource_desc | string | 否 | 数据源描述 |
+| connection_config | object | 否 | 连接配置 |
+| business_domain | string | 否 | 业务域 |
+| tags | string | 否 | 标签 |
+
+### 3.5 删除数据源
+
+**接口**：`DELETE /datasources/{datasource_id}`
+
+### 3.6 测试数据源连接
+
+**接口**：`POST /datasources/{datasource_id}/test`
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "success": true,
+  "message": "连接成功",
+  "test_time": "2026-03-31T10:00:00Z"
+}
+```
+
+### 3.7 同步数据源元数据
+
+**接口**：`POST /datasources/{datasource_id}/sync-metadata`
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "schemas_count": 3,
+  "tables_count": 45,
+  "sync_time": "2026-03-31T10:00:00Z"
+}
+```
+
+---
+
+## 4. 数据采集接口
+
+### 4.1 获取采集任务列表
+
+**接口**：`GET /etl-jobs`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| job_type | string | 否 | 任务类型：batch/stream |
+| status | int | 否 | 状态 |
+| keyword | string | 否 | 关键词 |
+| page | int | 否 | 页码 |
+| size | int | 否 | 每页条数 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "job_code": "sync_user_daily",
+        "job_name": "用户数据日同步",
+        "job_type": "batch",
+        "source_datasource_id": 1,
+        "source_table": "user_info",
+        "target_datasource_id": 2,
+        "target_table": "ods_user_info",
+        "schedule_type": "cron",
+        "schedule_config": {
+          "cron": "0 2 * * *"
+        },
+        "status": 1,
+        "last_execute_time": "2026-03-31T02:00:00Z",
+        "last_execute_status": "success"
+      }
+    ],
+    "total": 50
+  }
+}
+```
+
+### 4.2 创建采集任务
+
+**接口**：`POST /etl-jobs`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| job_code | string | 是 | 任务编码 |
+| job_name | string | 是 | 任务名称 |
+| job_type | string | 是 | 任务类型 |
+| source_datasource_id | int | 是 | 源数据源ID |
+| source_schema | string | 否 | 源Schema |
+| source_table | string | 否 | 源表 |
+| source_query | string | 否 | 源查询SQL |
+| target_datasource_id | int | 是 | 目标数据源ID |
+| target_schema | string | 否 | 目标Schema |
+| target_table | string | 否 | 目标表 |
+| field_mapping | array | 否 | 字段映射 |
+| filter_condition | string | 否 | 过滤条件 |
+| schedule_type | string | 是 | 调度类型 |
+| schedule_config | object | 是 | 调度配置 |
+
+**请求示例**：
+
+```json
+{
+  "job_code": "sync_order_daily",
+  "job_name": "订单数据日同步",
+  "job_type": "batch",
+  "source_datasource_id": 1,
+  "source_table": "order_info",
+  "target_datasource_id": 2,
+  "target_table": "ods_order_info",
+  "field_mapping": [
+    {"source": "order_id", "target": "order_id"},
+    {"source": "user_id", "target": "user_id"},
+    {"source": "amount", "target": "total_amount"}
+  ],
+  "schedule_type": "cron",
+  "schedule_config": {
+    "cron": "0 2 * * *",
+    "timezone": "Asia/Shanghai"
+  }
+}
+```
+
+### 4.3 启动/停止任务
+
+**接口**：`POST /etl-jobs/{job_id}/start`
+**接口**：`POST /etl-jobs/{job_id}/stop`
+
+### 4.4 获取任务执行记录
+
+**接口**：`GET /etl-jobs/{job_id}/instances`
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "items": [
+      {
+        "id": 1001,
+        "instance_code": "sync_user_daily_20260331",
+        "trigger_type": "schedule",
+        "execute_status": "success",
+        "start_time": "2026-03-31T02:00:00Z",
+        "end_time": "2026-03-31T02:05:30Z",
+        "duration_ms": 330000,
+        "read_count": 100000,
+        "write_count": 100000,
+        "error_count": 0
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 5. 数据质量接口
+
+### 5.1 获取质量规则列表
+
+**接口**：`GET /quality-rules`
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "rule_code": "user_phone_not_null",
+        "rule_name": "用户手机号非空检查",
+        "rule_type": "completeness",
+        "table_name": "dwd_user_info",
+        "column_name": "phone",
+        "warning_threshold": 95.0,
+        "error_threshold": 90.0,
+        "status": 1
+      }
+    ]
+  }
+}
+```
+
+### 5.2 创建质量规则
+
+**接口**：`POST /quality-rules`
+
+**请求示例**：
+
+```json
+{
+  "rule_code": "user_age_range",
+  "rule_name": "用户年龄范围检查",
+  "rule_type": "accuracy",
+  "table_id": 100,
+  "column_id": 500,
+  "rule_config": {
+    "check_type": "range",
+    "column": "age",
+    "min": 0,
+    "max": 150
+  },
+  "warning_threshold": 99.0,
+  "error_threshold": 95.0
+}
+```
+
+### 5.3 执行质量检查
+
+**接口**：`POST /quality-rules/{rule_id}/execute`
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "check_id": 10001,
+    "check_status": "success",
+    "total_count": 100000,
+    "error_count": 50,
+    "error_rate": 0.05,
+    "check_start_time": "2026-03-31T10:00:00Z",
+    "check_end_time": "2026-03-31T10:02:30Z"
+  }
+}
+```
+
+### 5.4 获取质量报告
+
+**接口**：`GET /quality-reports`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| start_date | string | 是 | 开始日期 |
+| end_date | string | 是 | 结束日期 |
+| table_id | int | 否 | 表ID |
+
+---
+
+## 6. 数据服务接口
+
+### 6.1 获取API列表
+
+**接口**：`GET /api-services`
+
+### 6.2 创建API
+
+**接口**：`POST /api-services`
+
+**请求示例**：
+
+```json
+{
+  "api_code": "get_user_list",
+  "api_name": "获取用户列表",
+  "api_path": "/users",
+  "api_method": "GET",
+  "datasource_id": 2,
+  "query_sql": "SELECT user_id, user_name, email FROM dwd_user_info WHERE status = 1",
+  "request_params": [
+    {
+      "name": "page",
+      "type": "int",
+      "required": false,
+      "default": 1
+    },
+    {
+      "name": "size",
+      "type": "int",
+      "required": false,
+      "default": 20
+    }
+  ],
+  "timeout_seconds": 30,
+  "rate_limit_qps": 100
+}
+```
+
+### 6.3 发布API
+
+**接口**：`POST /api-services/{api_id}/publish`
+
+### 6.4 调用API
+
+**接口**：根据配置的API路径和方法
+
+**示例**：`GET /data/users?page=1&size=10`
+
+**请求头**：
+
+```
+Authorization: Bearer {token}
+X-API-Key: YOUR_SECRET}
+```
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "list": [
+      {"user_id": 1, "user_name": "张三", "email": "zhangsan@example.com"}
+    ],
+    "total": 100,
+    "page": 1,
+    "size": 10
+  }
+}
+```
+
+---
+
+## 7. 数据分析接口
+
+### 7.1 执行SQL查询
+
+**接口**：`POST /query/execute`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| datasource_id | int | 是 | 数据源ID |
+| sql | string | 是 | SQL语句 |
+| limit | int | 否 | 返回条数限制，默认100 |
+
+**请求示例**：
+
+```json
+{
+  "datasource_id": 2,
+  "sql": "SELECT * FROM dwd_user_info WHERE province = '广东省' LIMIT 100",
+  "limit": 100
+}
+```
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "columns": ["user_id", "user_name", "province", "city"],
+    "rows": [
+      [1, "张三", "广东省", "深圳市"],
+      [2, "李四", "广东省", "广州市"]
+    ],
+    "total": 2,
+    "duration_ms": 150
+  }
+}
+```
+
+### 7.2 保存查询
+
+**接口**：`POST /query/save`
+
+### 7.3 获取查询历史
+
+**接口**：`GET /query/history`
+
+---
+
+## 8. 系统管理接口
+
+### 8.1 用户管理
+
+#### 获取用户列表
+
+**接口**：`GET /users`
+
+#### 创建用户
+
+**接口**：`POST /users`
+
+**请求示例**：
+
+```json
+{
+  "username": "zhangsan",
+  "password": "Password@123",
+  "email": "zhangsan@example.com",
+  "phone": "13800138000",
+  "real_name": "张三",
+  "dept_id": 1,
+  "role_ids": [2, 3]
+}
+```
+
+### 8.2 角色管理
+
+#### 获取角色列表
+
+**接口**：`GET /roles`
+
+#### 分配角色权限
+
+**接口**：`PUT /roles/{role_id}/permissions`
+
+### 8.3 审计日志
+
+#### 获取审计日志
+
+**接口**：`GET /audit-logs`
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| operation_type | string | 否 | 操作类型 |
+| user_id | int | 否 | 用户ID |
+| start_time | string | 否 | 开始时间 |
+| end_time | string | 否 | 结束时间 |
+| page | int | 否 | 页码 |
+| size | int | 否 | 每页条数 |
+
+---
+
+## 9. 错误码定义
+
+| 错误码 | 说明 | 处理建议 |
+|--------|------|---------|
+| 400001 | 参数校验失败 | 检查请求参数是否符合规范 |
+| 400002 | 数据源连接失败 | 检查数据源配置和网络 |
+| 400003 | SQL语法错误 | 检查SQL语句 |
+| 401001 | Token过期 | 刷新Token或重新登录 |
+| 401002 | Token无效 | 重新登录获取Token |
+| 403001 | 权限不足 | 联系管理员分配权限 |
+| 404001 | 资源不存在 | 检查资源ID是否正确 |
+| 429001 | 请求过于频繁 | 降低请求频率 |
+| 500001 | 服务器内部错误 | 联系技术支持 |
+
+---
+
+**文档结束**
